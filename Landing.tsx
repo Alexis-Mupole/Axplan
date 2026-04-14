@@ -1,85 +1,114 @@
 
-import React from 'react';
-import { Check, Trash2, Edit2, Calendar, Folder, Clock } from 'lucide-react';
-import { Todo } from '../../types';
+import React, { useState } from 'react';
 import { useTodoContext } from './todoContext';
-import { PRIORITIES } from '../../constants/filters';
+import { Input, Select } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { generateId } from '../../utils/generateId';
+import { Todo, Priority } from '../../types';
+import { useTranslation } from '../../hooks/useTranslation';
 
-interface TodoItemProps {
-  todo: Todo;
-  onEdit: (todo: Todo) => void;
+interface TodoFormProps {
+  onSuccess: () => void;
+  initialData?: Todo;
 }
 
-export const TodoItem: React.FC<TodoItemProps> = ({ todo, onEdit }) => {
+export const TodoForm: React.FC<TodoFormProps> = ({ onSuccess, initialData }) => {
   const { state, dispatch } = useTodoContext();
-  
-  const category = state.categories.find(c => c.id === todo.categoryId) || state.categories[0];
-  const priorityInfo = PRIORITIES.find(p => p.value === todo.priority);
+  const { t } = useTranslation();
+  const [formData, setFormData] = useState({
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    priority: initialData?.priority || 'medium' as Priority,
+    categoryId: initialData?.categoryId || state.categoryFilter || 'default',
+    dueDate: initialData?.dueDate || new Date().toISOString().split('T')[0],
+    dueTime: initialData?.dueTime || "12:00",
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title.trim()) return;
+
+    if (initialData) {
+      dispatch({
+        type: 'UPDATE_TODO',
+        payload: { ...initialData, ...formData, notified: false },
+      });
+    } else {
+      dispatch({
+        type: 'ADD_TODO',
+        payload: {
+          id: generateId(),
+          ...formData,
+          completed: false,
+          createdAt: new Date().toISOString(),
+          notified: false,
+        },
+      });
+    }
+    onSuccess();
+  };
+
+  const priorityOptions = [
+    { label: t('low'), value: 'low' },
+    { label: t('medium'), value: 'medium' },
+    { label: t('high'), value: 'high' },
+  ];
 
   return (
-    <div className={`group relative bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500/50 transition-all hover:shadow-lg ${todo.completed ? 'opacity-80' : ''}`}>
-      <div className="flex gap-4">
-        <button
-          onClick={() => dispatch({ type: 'TOGGLE_TODO', payload: todo.id })}
-          className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all mt-1 ${
-            todo.completed 
-              ? 'bg-emerald-500 border-emerald-500 text-white' 
-              : 'border-slate-300 dark:border-slate-700 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'
-          }`}
-        >
-          {todo.completed && <Check size={14} strokeWidth={3} />}
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4 mb-1">
-            <h4 className={`font-bold text-slate-900 dark:text-slate-100 truncate text-base ${todo.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
-              {todo.title}
-            </h4>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={() => onEdit(todo)}
-                className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-              >
-                <Edit2 size={16} />
-              </button>
-              <button 
-                onClick={() => dispatch({ type: 'DELETE_TODO', payload: todo.id })}
-                className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-
-          {todo.description && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3 font-medium">
-              {todo.description}
-            </p>
-          )}
-
-          <div className="flex flex-wrap items-center gap-4">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${priorityInfo?.color} shadow-sm`}>
-              {todo.priority}
-            </span>
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-semibold">
-              <Folder size={12} style={{ color: category.color }} />
-              <span>{category.name}</span>
-            </div>
-            {todo.dueDate && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-semibold">
-                <Calendar size={12} className="text-indigo-500" />
-                <span>{new Date(todo.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-              </div>
-            )}
-            {todo.dueTime && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-semibold">
-                <Clock size={12} className="text-amber-500" />
-                <span>{todo.dueTime}</span>
-              </div>
-            )}
-          </div>
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <Input
+        label={t('title')}
+        placeholder="What needs to be done?"
+        value={formData.title}
+        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+        required
+        autoFocus
+      />
+      
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('description')} (Optional)</label>
+        <textarea
+          className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none min-h-[100px] text-sm dark:text-slate-100"
+          placeholder="Add details..."
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+        />
       </div>
-    </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Select
+          label={t('priority')}
+          value={formData.priority}
+          onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
+          options={priorityOptions}
+        />
+        <Select
+          label={t('project')}
+          value={formData.categoryId}
+          onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+          options={state.categories.map(c => ({ label: c.name, value: c.id }))}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Input
+          label={t('dueDate')}
+          type="date"
+          value={formData.dueDate}
+          onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+        />
+        <Input
+          label="Due Time"
+          type="time"
+          value={formData.dueTime}
+          onChange={(e) => setFormData({ ...formData, dueTime: e.target.value })}
+        />
+      </div>
+
+      <div className="flex justify-end gap-3 mt-6">
+        <Button type="button" variant="ghost" onClick={onSuccess}>{t('cancel')}</Button>
+        <Button type="submit">{initialData ? t('update') : t('create')}</Button>
+      </div>
+    </form>
   );
 };

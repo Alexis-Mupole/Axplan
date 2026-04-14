@@ -1,66 +1,84 @@
 
-import React, { useState } from 'react';
-import { useTodoContext } from './todoContext';
-import { TodoItem } from './TodoItem';
-import { Todo } from '../../types';
-import { Modal } from '../../components/ui/Modal';
-import { TodoForm } from './TodoForm';
-import { Inbox } from 'lucide-react';
+import { TodoState, TodoAction } from '../../types';
 
-export const TodoList: React.FC = () => {
-  const { state } = useTodoContext();
-  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+export const initialState: TodoState = {
+  todos: [],
+  categories: [
+    { id: 'default', name: 'General', color: '#6366f1' },
+    { id: 'work', name: 'Work', color: '#ef4444' },
+    { id: 'personal', name: 'Personal', color: '#10b981' },
+  ],
+  filter: 'all',
+  categoryFilter: null,
+  theme: 'light',
+  language: 'en',
+  notificationsEnabled: true,
+  notificationSound: 'bell',
+  notificationVolume: 0.5,
+  reminderOffset: 10,
+};
 
-  const filteredTodos = state.todos.filter((todo) => {
-    const matchesStatus = 
-      state.filter === 'all' || 
-      (state.filter === 'active' && !todo.completed) || 
-      (state.filter === 'completed' && todo.completed);
-    
-    const matchesCategory = 
-      !state.categoryFilter || todo.categoryId === state.categoryFilter;
-
-    return matchesStatus && matchesCategory;
-  });
-
-  if (filteredTodos.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-        <div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-full mb-4">
-          <Inbox size={48} className="text-slate-300 dark:text-slate-600" />
-        </div>
-        <h3 className="text-lg font-medium text-slate-600 dark:text-slate-300">No tasks found</h3>
-        <p className="text-sm text-center max-w-xs mt-1">
-          {state.filter === 'all' 
-            ? "You don't have any tasks yet. Create one to get started!" 
-            : `You don't have any ${state.filter} tasks.`}
-        </p>
-      </div>
-    );
+export const todoReducer = (state: TodoState, action: TodoAction): TodoState => {
+  switch (action.type) {
+    case 'ADD_TODO':
+      return { ...state, todos: [action.payload, ...state.todos] };
+    case 'TOGGLE_TODO':
+      return {
+        ...state,
+        todos: state.todos.map((todo) =>
+          todo.id === action.payload ? { ...todo, completed: !todo.completed } : todo
+        ),
+      };
+    case 'DELETE_TODO':
+      return { ...state, todos: state.todos.filter((t) => t.id !== action.payload) };
+    case 'UPDATE_TODO':
+      return {
+        ...state,
+        todos: state.todos.map((t) => (t.id === action.payload.id ? action.payload : t)),
+      };
+    case 'SET_FILTER':
+      return { ...state, filter: action.payload };
+    case 'ADD_CATEGORY':
+      return { ...state, categories: [...state.categories, action.payload] };
+    case 'UPDATE_CATEGORY':
+      return {
+        ...state,
+        categories: state.categories.map((c) => (c.id === action.payload.id ? action.payload : c)),
+      };
+    case 'DELETE_CATEGORY':
+      return {
+        ...state,
+        categories: state.categories.filter((c) => c.id !== action.payload),
+        todos: state.todos.map((t) =>
+          t.categoryId === action.payload ? { ...t, categoryId: 'default' } : t
+        ),
+      };
+    case 'SET_CATEGORY_FILTER':
+      return { ...state, categoryFilter: action.payload };
+    case 'SET_THEME':
+      return { ...state, theme: action.payload };
+    case 'SET_LANGUAGE':
+      return { ...state, language: action.payload };
+    case 'TOGGLE_NOTIFICATIONS':
+      return { ...state, notificationsEnabled: !state.notificationsEnabled };
+    case 'SET_NOTIF_SOUND':
+      return { ...state, notificationSound: action.payload };
+    case 'SET_NOTIF_VOLUME':
+      return { ...state, notificationVolume: action.payload };
+    case 'SET_REMINDER_OFFSET':
+      return { ...state, reminderOffset: action.payload };
+    case 'MARK_NOTIFIED':
+      return {
+        ...state,
+        todos: state.todos.map((t) => 
+          t.id === action.payload ? { ...t, notified: true } : t
+        ),
+      };
+    case 'RESET_DATA':
+      return { ...initialState };
+    case 'IMPORT_DATA':
+      return { ...state, ...action.payload };
+    default:
+      return state;
   }
-
-  return (
-    <div className="grid gap-4">
-      {filteredTodos.map((todo) => (
-        <TodoItem 
-          key={todo.id} 
-          todo={todo} 
-          onEdit={(t) => setEditingTodo(t)}
-        />
-      ))}
-
-      <Modal 
-        isOpen={!!editingTodo} 
-        onClose={() => setEditingTodo(null)} 
-        title="Edit Task"
-      >
-        {editingTodo && (
-          <TodoForm 
-            initialData={editingTodo} 
-            onSuccess={() => setEditingTodo(null)} 
-          />
-        )}
-      </Modal>
-    </div>
-  );
 };
