@@ -1,0 +1,5 @@
+{
+  "name": "AxPlan - Advanced Task Management",
+  "description": "A professional-grade, multi-page To-Do application built with React, TypeScript, and Tailwind CSS, featuring analytics, project categorization, and local persistence.",
+  "requestFramePermissions": []
+}
